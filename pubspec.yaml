@@ -1,0 +1,27 @@
+name: homebridge_sunrise_wakeup
+description: An homebridgre addon to program a sunrise wakeup with homebridge api
+version: 1.0.0
+repository: https://github.com/krikristoophe/homebridge_sunrise_wakeup
+publish_to: none
+
+environment:
+  sdk: ^3.1.4
+
+dependencies:
+  collection: ^1.18.0
+  cron: ^0.5.1
+  dart_datasource_models: ^0.0.9
+  easy_dart_logger: ^1.0.3+1
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+  sqlite3: ^2.1.0
+
+dev_dependencies:
+  build_runner: ^2.4.6
+  dart_datasource_generator: ^0.0.5
+  freezed: ^2.4.5
+  json_serializable: ^6.7.1
+  test: ^1.21.0
+  very_good_analysis: ^5.1.0
