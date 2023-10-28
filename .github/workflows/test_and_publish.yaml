@@ -1,0 +1,91 @@
+name: Test and Publish
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  is-duplicate:
+    name: Is Duplicate
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip-check.outputs.should_skip }}
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - id: skip-check
+        name: Skip Check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          paths_ignore: '["**/README.md"]'
+
+  check-code:
+    name: Check code
+    runs-on: ubuntu-latest
+    needs: is-duplicate
+    if: needs.is-duplicate.outputs.should_skip != 'true'
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Set up Dart toolchain
+        uses: dart-lang/setup-dart@v1
+      - name: Install dependencies
+        run: dart pub get
+      - name: Build runner
+        run: dart pub run build_runner build --delete-conflicting-outputs
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed --output=none lib test
+      - name: Analyze project source
+        run: dart analyze --fatal-infos
+
+  build-and-push-image:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    needs: [check-code]
+    if: |
+      !failure() &&
+      startsWith(github.ref, 'refs/tags/')
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/arm64
